@@ -8,3 +8,15 @@ mcp>=0.2.0
 numpy>=1.24.3
 ollama>=0.1.6
 chromadb>=0.4.22
+asyncio>=3.4.3
+
+# PyTorch
+torch>=2.1.1
+torchvision>=0.16.1
+torchaudio>=2.1.1
+
+# Transformers
+transformers>=4.35.0
+
+# Sentence Transformers
+sentence-transformers>=2.0.0

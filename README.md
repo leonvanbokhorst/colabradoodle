@@ -26,7 +26,7 @@ At its heart, Colabradoodle celebrates experimentation, creativity, and the occa
 ## 📂 Repository Contents
 
 - `agents/`: The code for the agents that formed the Colabradoodle network. Each agent has its own personality, tasks, and quirks.
-- `router/`: The semantic routing and discovery service that kept the network alive.
+- `router.py`: The semantic routing and discovery service that kept the network alive.
 - `logs/`: A selection of logs capturing the interactions, chaos, and emergent behavior of the network during the day.
 - `docs/`: Reflections, notes, and takeaways from the workshop participants.
 

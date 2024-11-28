@@ -1,7 +1,7 @@
 # Colabradoodle: A Semantic Agent Collaboration 🐾
 
 **Welcome to the Colabradoodle repository!**  
-This project is the digital artifact of a one-day experimental workshop where a group of curious developers, researchers, and educators came together to explore the chaos and magic of distributed multi-agent systems.
+This project is the digital artifact of a one-day experimental workshop where a group of curious developers, designers, researchers, and educators came together to explore the chaos and magic of distributed multi-agent systems.
 
 ![Colabradoodle Logo](colabradoodle.png)
 

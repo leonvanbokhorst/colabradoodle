@@ -1,0 +1,55 @@
+# Core dependencies
+numpy   
+appdirs 
+pydantic
+psutil
+
+# Testing
+pytest
+pytest-asyncio
+pytest-mock
+
+# ML & LLM
+ollama
+chromadb
+llama-cpp-python
+transformers
+PyWavelets
+scikit-learn
+sentence-transformers
+wandb
+
+# Visualization
+matplotlib
+seaborn
+pydot
+pygraphviz
+
+# PyTorch ecosystem 
+torch
+torchvision
+torchaudio
+torch-geometric
+
+# Web scraping
+aiohttp
+bs4
+
+# Langchain
+langchain
+langchain-community
+langchain-ollama
+
+# Gymnasium
+gymnasium
+pygame
+gymnasium[other]
+
+# Minigrid
+minigrid
+
+# Stable Baselines3
+stable_baselines3 
+
+# Tensorboard
+tensorboard 

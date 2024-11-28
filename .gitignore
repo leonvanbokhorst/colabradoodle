@@ -4,6 +4,7 @@ venv/
 env/
 .env/
 .pytest_cache/
+.DS_Store
 
 # Python
 __pycache__/

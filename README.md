@@ -41,9 +41,23 @@ While the network is no longer live, you can:
    cd colabradoodle
    ```
 
-2. Explore the agent code and the semantic routing implementation.
-3. Run your own mini-version of the network by starting the agents and router locally.
-4. Laugh at our mistakes and learn from them. 😊
+2. Create a virtual environment and install the dependencies:
+
+   ```bash
+   python -m venv .venv
+   source .venv/bin/activate # On Windows use `.\.venv\Scripts\activate`
+   ```
+
+3. Upgrade pip and install the dependencies:
+
+   ```bash
+   pip install --upgrade pip
+   pip install -r requirements.txt
+   ```  
+
+4. Explore the agent code and the semantic routing implementation.
+5. Run your own mini-version of the network by starting the agents and router locally.
+6. Laugh at our mistakes and learn from them. 😊
 
 ## 🧑‍🤝‍🧑 Workshop Reflections
 

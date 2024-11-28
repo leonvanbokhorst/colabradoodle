@@ -1,4 +1,4 @@
-# Colabradoodle: A Semantic Agent Collaboration Experiment 🐾
+# Colabradoodle: A Semantic Agent Collaboration 🐾
 
 **Welcome to the Colabradoodle repository!**  
 This project is the digital artifact of a one-day experimental workshop where a group of curious developers, researchers, and educators came together to explore the chaos and magic of distributed multi-agent systems.
@@ -59,8 +59,4 @@ This project is released under the [MIT License](LICENSE).
 
 ## ❤️ Acknowledgments
 
-Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day.
-
----
-
-What do you think? 😊
+Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day. You rock! 😊

@@ -26,7 +26,7 @@ HandlerFunction: TypeAlias = Callable[[str], Awaitable[Any]]
 
 # Constants
 EMBEDDING_MODEL: Final[str] = "BAAI/bge-large-en-v1.5"
-SIMILARITY_THRESHOLD: Final[float] = 0.625
+SIMILARITY_THRESHOLD: Final[float] = 0.5
 DEFAULT_CACHE_SIZE: Final[int] = 1000
 REQUEST_TIMEOUT: Final[float] = 30.0
 MAX_TEXT_LENGTH: Final[int] = 1000
@@ -105,28 +105,35 @@ class EmbeddingService:
 
 
 class RouterError(Exception):
+    """Base exception for all router-related errors."""
     pass
 
-
-class RouteNotFoundError(RouterError):
+class RouteError(RouterError):
+    """Errors related to route matching and embedding."""
     pass
 
-
-class EmbeddingError(RouterError):
+class ExecutionError(RouterError):
+    """Errors related to request execution."""
     pass
 
-
-class HandlerExecutionError(RouterError):
-    pass
-
-
-class RateLimitExceededError(RouterError):
-    pass
-
-
-class RequestTimeoutError(RouterError):
-    pass
-
+def rate_limit(requests_per_minute: int = 100):
+    """Decorator to implement rate limiting.
+    
+    Args:
+        requests_per_minute: Maximum number of requests allowed per minute
+    """
+    def decorator(func):
+        request_times: List[float] = []
+        
+        async def wrapper(*args, **kwargs):
+            current_time = time.time()
+            request_times[:] = [t for t in request_times if current_time - t < 60]
+            if len(request_times) > requests_per_minute:
+                raise ExecutionError("Rate limit exceeded")
+            request_times.append(current_time)
+            return await func(*args, **kwargs)
+        return wrapper
+    return decorator
 
 class SemanticRouter:
     """Semantic router for handling and routing requests based on embeddings."""
@@ -189,14 +196,6 @@ class SemanticRouter:
         self.routes.sort(key=lambda x: x.priority, reverse=True)
         logger.debug(f"Total routes after addition: {len(self.routes)}")
 
-    def _check_rate_limit(self) -> None:
-        """Check if request rate limit is exceeded."""
-        current_time = time.time()
-        self._request_times = [t for t in self._request_times if current_time - t < 60]
-        if len(self._request_times) > 100:  # 100 requests per minute
-            raise RateLimitExceededError("Rate limit exceeded")
-        self._request_times.append(current_time)
-
     def _compute_similarity(
         self, embedding1: EmbeddingVector, embedding2: EmbeddingVector
     ) -> float:
@@ -236,6 +235,15 @@ class SemanticRouter:
             logger.error(f"Embedding generation failed: {str(e)}", exc_info=True)
             raise EmbeddingError(f"Failed to generate embedding: {str(e)}") from e
 
+    async def _handle_no_route(self, content: str) -> Any:
+        """Handle cases where no matching route is found."""
+        if self.default_handler:
+            logger.info("Using default handler for unmatched request")
+            return await self._execute_handler(self.default_handler, content)
+        logger.error("No matching route found for request")
+        raise RouteError("No matching route found")
+
+    @rate_limit(100)
     async def handle_request(self, content: str) -> Any:
         """Handle an incoming request.
 
@@ -246,27 +254,19 @@ class SemanticRouter:
             Handler response
 
         Raises:
-            ValueError: If content is empty
-            RouteNotFoundError: If no matching route is found
-            RequestTimeoutError: If request times out
-            Exception: Original exception from handler execution
+            RouteError: If route matching fails
+            ExecutionError: If request execution fails
         """
         if not content.strip():
             raise ValueError("Request content cannot be empty")
-
-        self._check_rate_limit()
 
         try:
             async with asyncio.timeout(REQUEST_TIMEOUT):
                 logger.info("Processing new request")
                 route_result = await self.route(content)
-
+                
                 if not route_result:
-                    if self.default_handler:
-                        logger.info("Using default handler for unmatched request")
-                        return await self._execute_handler(self.default_handler, content)
-                    logger.error("No matching route found for request")
-                    raise RouteNotFoundError("No matching route found")
+                    return await self._handle_no_route(content)
 
                 handler, similarity = route_result
                 logger.info(f"Executing handler '{handler.__name__}' with similarity {similarity:.3f}")
@@ -274,7 +274,7 @@ class SemanticRouter:
 
         except asyncio.TimeoutError:
             logger.error("Request timed out")
-            raise RequestTimeoutError(f"Request timed out after {REQUEST_TIMEOUT} seconds")
+            raise ExecutionError(f"Request timed out after {REQUEST_TIMEOUT} seconds")
 
     async def route(self, content: str) -> Optional[Tuple[HandlerFunction, float]]:
         logger.debug(f"Routing request: {content[:100]}...")
@@ -336,7 +336,7 @@ async def main():
         embedding_service = EmbeddingService()
         router = SemanticRouter(
             embedding_service,
-            similarity_threshold=0.625,
+            similarity_threshold=0.5,
             default_handler=default_response,
         )
 

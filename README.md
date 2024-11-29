@@ -73,6 +73,8 @@ This project is released under the [MIT License](LICENSE).
 
 ## ❤️ Acknowledgments
 
-Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day. You rock! 😊
+Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day. You rock! 😊 
 
-![odt](opleiding-digitale-transformatie.png)
+<p align="right">
+  <img src="opleiding-digitale-transformatie.png" alt="odt">
+</p>

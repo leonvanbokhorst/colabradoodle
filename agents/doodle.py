@@ -9,7 +9,11 @@ logger = setup_logger("DoodleAgent")
 class DoodleAgent(BaseAgent):
     """A semantically-aware dog-like agent that barks."""
 
-    ROUTE_DESCRIPTION = "Woof! Labradoodle dog that barks and wags his tail. He's a good boy. Atta girl!"
+    ROUTE_DESCRIPTION = """
+    A friendly dog agent that responds to questions and commands about dogs, barking, 
+    and general dog behavior. Handles queries like 'who let the dogs out', 'can you bark',
+    'what does the dog say', etc.
+    """
 
     def __init__(self, session: Optional[ClientSession] = None) -> None:
         """Initialize the DoodleAgent."""

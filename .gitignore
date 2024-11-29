@@ -5,6 +5,7 @@ env/
 .env/
 .pytest_cache/
 .DS_Store
+logs/
 
 # Python
 __pycache__/

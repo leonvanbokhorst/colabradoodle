@@ -47,6 +47,8 @@ import sys
 from sentence_transformers import SentenceTransformer
 from agents.doodle import DoodleAgent
 import logging
+from collections import deque
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -105,6 +107,11 @@ class EmbeddingService:
         return self.model.encode(text, normalize_embeddings=True).tolist()
 
 
+class RateLimitExceeded(Exception):
+    """Raised when request rate exceeds configured limits."""
+    pass
+
+
 class SemanticRouter:
     """Routes requests based on semantic matching of content.
 
@@ -130,19 +137,26 @@ class SemanticRouter:
     """
 
     def __init__(
-        self, embedding_service: EmbeddingService, similarity_threshold: float = 0.5
+        self, embedding_service: EmbeddingService, similarity_threshold: float = 0.5,
+        max_requests: int = 100,
+        time_window: float = 60.0
     ) -> None:
-        """Initialize the semantic router with an embedding service.
+        """Initialize the semantic router with rate limiting.
 
         Args:
             embedding_service: Service for generating text embeddings
             similarity_threshold: Minimum similarity score required for matching (0-1)
+            max_requests: Maximum number of requests allowed in time window
+            time_window: Time window in seconds for rate limiting
         """
         self.routes: List[Route] = []
         self._session: Optional[SessionProtocol] = None
         self._embedding_cache: Dict[str, List[float]] = {}
         self.embedding_service = embedding_service
         self.similarity_threshold = similarity_threshold
+        self._request_times = deque(maxlen=max_requests)
+        self.max_requests = max_requests
+        self.time_window = time_window
 
     async def add_route(self, route: Route) -> None:
         """Add a new routing rule.
@@ -209,22 +223,35 @@ class SemanticRouter:
         return sum(a * b for a, b in zip(embedding1, embedding2))
 
     async def handle_request(self, content: str) -> Any:
-        """Process incoming request and route to appropriate handler.
-
-        Args:
-            content: The request content to be processed
-
-        Returns:
-            Response from the matched handler
+        """Process incoming request with rate limiting.
 
         Raises:
+            RateLimitExceeded: If request rate exceeds configured limits
             ValueError: If no matching route is found
         """
+        # Check rate limit before processing
+        self._check_rate_limit()
+        
         route_result = await self.route(content)
         if route_result:
             handler, similarity = route_result
             return await self._execute_handler(handler, content)
         raise ValueError("No matching route found")
+
+    def _check_rate_limit(self) -> None:
+        """Check if request rate is within configured limits.
+        
+        Uses a deque with maxlen for efficient sliding window implementation.
+        """
+        current_time = time.time()
+        self._request_times.append(current_time)
+        
+        if len(self._request_times) == self.max_requests:
+            window_start = self._request_times[0]
+            if current_time - window_start < self.time_window:
+                raise RateLimitExceeded(
+                    f"Rate limit of {self.max_requests} requests per {self.time_window} seconds exceeded"
+                )
 
     async def _execute_handler(self, handler: Any, content: str) -> Any:
         """Execute the matched handler.

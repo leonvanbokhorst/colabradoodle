@@ -247,8 +247,9 @@ class SemanticRouter:
 
         Raises:
             ValueError: If content is empty
-            RouterError: If request handling fails
+            RouteNotFoundError: If no matching route is found
             RequestTimeoutError: If request times out
+            Exception: Original exception from handler execution
         """
         if not content.strip():
             raise ValueError("Request content cannot be empty")
@@ -263,35 +264,17 @@ class SemanticRouter:
                 if not route_result:
                     if self.default_handler:
                         logger.info("Using default handler for unmatched request")
-                        return await self._execute_handler(
-                            self.default_handler, content
-                        )
+                        return await self._execute_handler(self.default_handler, content)
                     logger.error("No matching route found for request")
                     raise RouteNotFoundError("No matching route found")
 
                 handler, similarity = route_result
-                logger.info(
-                    f"Executing handler '{handler.__name__}' with similarity {similarity:.3f}"
-                )
-
-                try:
-                    return await self._execute_handler(handler, content)
-                except Exception as e:
-                    logger.error(f"Handler execution failed: {e}", exc_info=True)
-                    raise HandlerExecutionError(
-                        f"Handler execution failed: {str(e)}"
-                    ) from e
+                logger.info(f"Executing handler '{handler.__name__}' with similarity {similarity:.3f}")
+                return await self._execute_handler(handler, content)
 
         except asyncio.TimeoutError:
             logger.error("Request timed out")
-            raise RequestTimeoutError(
-                f"Request timed out after {REQUEST_TIMEOUT} seconds"
-            )
-        except Exception as e:
-            logger.error(
-                f"Unexpected error during request handling: {e}", exc_info=True
-            )
-            raise RouterError(f"Request handling failed: {str(e)}") from e
+            raise RequestTimeoutError(f"Request timed out after {REQUEST_TIMEOUT} seconds")
 
     async def route(self, content: str) -> Optional[Tuple[HandlerFunction, float]]:
         logger.debug(f"Routing request: {content[:100]}...")
@@ -322,7 +305,23 @@ class SemanticRouter:
         return None
 
     async def _execute_handler(self, handler: HandlerFunction, content: str) -> Any:
-        return await handler(content)
+        """Execute the handler function while preserving original exceptions.
+
+        Args:
+            handler: Function to handle the request
+            content: Request content to pass to handler
+
+        Returns:
+            Handler response
+
+        Raises:
+            Exception: Original exception from handler execution
+        """
+        try:
+            return await handler(content)
+        except Exception as e:
+            logger.error(f"Handler '{handler.__name__}' execution failed: {e}", exc_info=True)
+            raise  # Re-raise the original exception with full context
 
     async def set_session(self, session: SessionProtocol) -> None:
         self._session = session

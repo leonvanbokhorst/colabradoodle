@@ -100,4 +100,43 @@ async def test_registry_server_default_timeout():
     
     # Verify server is registered
     servers = await server.discover_servers()
-    assert len(servers) == 1 
+    assert len(servers) == 1
+
+@pytest.mark.asyncio
+async def test_cleanup_stale_servers():
+    # Initialize server with 2 second timeout
+    server = RegistryServer(name="test_registry", server_timeout_seconds=2)
+    
+    # Register multiple test servers
+    servers_config = [
+        ("fresh_server", "Fresh Server"),
+        ("stale_server", "Stale Server"),
+        ("barely_fresh_server", "Barely Fresh Server")
+    ]
+    
+    for server_id, name in servers_config:
+        await server.register_server(
+            server_id=server_id,
+            name=name,
+            description=f"Test server {name}",
+            capabilities=["test"],
+            endpoint="test://endpoint"
+        )
+    
+    # Manipulate last_heartbeat timestamps
+    now = datetime.utcnow()
+    server.servers["stale_server"].last_heartbeat = now - timedelta(seconds=3)  # Definitely stale
+    server.servers["barely_fresh_server"].last_heartbeat = now - timedelta(seconds=1.5)  # Still fresh
+    
+    # Run cleanup
+    await server._cleanup_stale_servers()
+    
+    # Verify results
+    remaining_servers = await server.discover_servers()
+    remaining_ids = {s["id"] for s in remaining_servers}
+    
+    assert "stale_server" not in remaining_ids, "Stale server should be removed"
+    assert "fresh_server" in remaining_ids, "Fresh server should remain"
+    assert "barely_fresh_server" in remaining_ids, "Barely fresh server should remain"
+    assert len(remaining_servers) == 2, "Should have exactly 2 servers remaining"
+    

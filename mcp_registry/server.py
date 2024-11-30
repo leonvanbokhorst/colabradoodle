@@ -100,24 +100,36 @@ class RegistryServer(Server):
             )
         return servers
 
+    async def _cleanup_stale_servers(self) -> None:
+        """Remove servers that haven't sent a heartbeat within the timeout period.
+
+        This method checks all registered servers and removes any that have exceeded
+        the configured timeout period since their last heartbeat.
+        """
+        now = datetime.utcnow()
+        stale_servers = [
+            server_id
+            for server_id, server in self.servers.items()
+            if (now - server.last_heartbeat).total_seconds()
+            > self.server_timeout_seconds
+        ]
+
+        for server_id in stale_servers:
+            del self.servers[server_id]
+            self.logger.info(
+                f"Removed stale server: {server_id} (timeout: {self.server_timeout_seconds}s)"
+            )
+
     async def _cleanup_loop(self):
-        """Periodically remove stale server registrations"""
+        """Periodically run the cleanup process to remove stale server registrations.
+
+        This method controls the cleanup loop timing and error handling, delegating
+        the actual cleanup work to _cleanup_stale_servers.
+        """
         while True:
             try:
-                now = datetime.utcnow()
-                stale_servers = [
-                    server_id
-                    for server_id, server in self.servers.items()
-                    if (now - server.last_heartbeat).total_seconds()
-                    > self.server_timeout_seconds
-                ]
-
-                for server_id in stale_servers:
-                    del self.servers[server_id]
-                    self.logger.info(
-                        f"Removed stale server: {server_id} (timeout: {self.server_timeout_seconds}s)"
-                    )
-
+                await self._cleanup_stale_servers()
+                # Sleep for half the timeout period, but between 5 and 30 seconds
                 await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
             except asyncio.CancelledError:
                 break

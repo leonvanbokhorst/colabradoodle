@@ -118,7 +118,7 @@ class RegistryServer(Server):
                         f"Removed stale server: {server_id} (timeout: {self.server_timeout_seconds}s)"
                     )
 
-                await asyncio.sleep(min(30, self.server_timeout_seconds / 2))
+                await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
             except asyncio.CancelledError:
                 break
             except Exception as e:

@@ -20,3 +20,7 @@ transformers>=4.35.0
 
 # Sentence Transformers
 sentence-transformers>=2.0.0
+
+# Pytest
+pytest>=7.4.3
+pytest-asyncio>=0.23.0

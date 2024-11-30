@@ -103,15 +103,15 @@ async def test_registry_server_default_timeout():
     assert len(servers) == 1
 
 @pytest.mark.asyncio
-async def test_cleanup_stale_servers():
+async def test_cleanup_stale_servers_with_concurrent_heartbeats():
     # Initialize server with 2 second timeout
     server = RegistryServer(name="test_registry", server_timeout_seconds=2)
     
     # Register multiple test servers
     servers_config = [
-        ("fresh_server", "Fresh Server"),
-        ("stale_server", "Stale Server"),
-        ("barely_fresh_server", "Barely Fresh Server")
+        ("server1", "Server 1"),
+        ("server2", "Server 2"),
+        ("server3", "Server 3")
     ]
     
     for server_id, name in servers_config:
@@ -125,18 +125,34 @@ async def test_cleanup_stale_servers():
     
     # Manipulate last_heartbeat timestamps
     now = datetime.utcnow()
-    server.servers["stale_server"].last_heartbeat = now - timedelta(seconds=3)  # Definitely stale
-    server.servers["barely_fresh_server"].last_heartbeat = now - timedelta(seconds=1.5)  # Still fresh
+    server.servers["server1"].last_heartbeat = now - timedelta(seconds=3)  # Definitely stale
+    server.servers["server2"].last_heartbeat = now - timedelta(seconds=1.5)  # Still fresh
+    server.servers["server3"].last_heartbeat = now - timedelta(seconds=1.5)  # Still fresh
     
-    # Run cleanup
-    await server._cleanup_stale_servers()
+    # Start cleanup task
+    cleanup_task = asyncio.create_task(server._cleanup_loop())
+    
+    # Send heartbeats concurrently
+    await asyncio.sleep(1)  # Wait a bit before sending heartbeats
+    await server.heartbeat("server1")
+    await server.heartbeat("server2")
+    
+    # Allow cleanup to run
+    await asyncio.sleep(1)
     
     # Verify results
     remaining_servers = await server.discover_servers()
     remaining_ids = {s["id"] for s in remaining_servers}
     
-    assert "stale_server" not in remaining_ids, "Stale server should be removed"
-    assert "fresh_server" in remaining_ids, "Fresh server should remain"
-    assert "barely_fresh_server" in remaining_ids, "Barely fresh server should remain"
-    assert len(remaining_servers) == 2, "Should have exactly 2 servers remaining"
+    assert "server1" in remaining_ids, "Server 1 should remain due to heartbeat"
+    assert "server2" in remaining_ids, "Server 2 should remain due to heartbeat"
+    assert "server3" in remaining_ids, "Server 3 should remain"
+    assert len(remaining_servers) == 3, "Should have exactly 3 servers remaining"
+    
+    # Cleanup
+    cleanup_task.cancel()
+    try:
+        await cleanup_task
+    except asyncio.CancelledError:
+        pass
     

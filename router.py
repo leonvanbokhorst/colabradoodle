@@ -15,7 +15,7 @@ import asyncio
 import sys
 import numpy as np
 from sentence_transformers import SentenceTransformer
-from agents.doodle import DoodleAgent
+from mcp.server.doodle_server import DoodleServer
 from utils.log_config import setup_logger
 from collections import OrderedDict
 import time
@@ -30,6 +30,9 @@ SIMILARITY_THRESHOLD: Final[float] = 0.5
 DEFAULT_CACHE_SIZE: Final[int] = 1000
 REQUEST_TIMEOUT: Final[float] = 30.0
 MAX_TEXT_LENGTH: Final[int] = 1000
+DEFAULT_CLEANUP_RATIO: Final[float] = 1 / 3  # Run cleanup 3x per timeout period
+MIN_CLEANUP_INTERVAL: Final[float] = 1.0  # Minimum 1 second between cleanups
+MAX_CLEANUP_INTERVAL: Final[float] = 30.0  # Maximum 30 seconds between cleanups
 
 logger = setup_logger("Router")
 
@@ -106,25 +109,32 @@ class EmbeddingService:
 
 class RouterError(Exception):
     """Base exception for all router-related errors."""
+
     pass
+
 
 class RouteError(RouterError):
     """Errors related to route matching and embedding."""
+
     pass
+
 
 class ExecutionError(RouterError):
     """Errors related to request execution."""
+
     pass
+
 
 def rate_limit(requests_per_minute: int = 100):
     """Decorator to implement rate limiting.
-    
+
     Args:
         requests_per_minute: Maximum number of requests allowed per minute
     """
+
     def decorator(func):
         request_times: List[float] = []
-        
+
         async def wrapper(*args, **kwargs):
             current_time = time.time()
             request_times[:] = [t for t in request_times if current_time - t < 60]
@@ -132,8 +142,11 @@ def rate_limit(requests_per_minute: int = 100):
                 raise ExecutionError("Rate limit exceeded")
             request_times.append(current_time)
             return await func(*args, **kwargs)
+
         return wrapper
+
     return decorator
+
 
 class SemanticRouter:
     """Semantic router for handling and routing requests based on embeddings."""
@@ -143,6 +156,8 @@ class SemanticRouter:
         embedding_service: Optional[EmbeddingService] = None,
         similarity_threshold: float = SIMILARITY_THRESHOLD,
         default_handler: Optional[HandlerFunction] = None,
+        cleanup_interval: Optional[float] = None,
+        request_timeout: float = REQUEST_TIMEOUT,
     ) -> None:
         """Initialize the semantic router.
 
@@ -150,6 +165,9 @@ class SemanticRouter:
             embedding_service: Service for generating embeddings
             similarity_threshold: Minimum similarity score (0-1)
             default_handler: Handler for unmatched requests
+            cleanup_interval: Interval between cleanup operations in seconds
+                (defaults to request_timeout * DEFAULT_CLEANUP_RATIO)
+            request_timeout: Maximum time to wait for request processing
 
         Raises:
             ValueError: If parameters are invalid
@@ -159,8 +177,28 @@ class SemanticRouter:
         if embedding_service is None:
             raise ValueError("Embedding service cannot be None")
 
+        self.request_timeout = request_timeout
+
+        # Calculate and validate cleanup interval
+        if cleanup_interval is None:
+            cleanup_interval = request_timeout * DEFAULT_CLEANUP_RATIO
+
+        if cleanup_interval < MIN_CLEANUP_INTERVAL:
+            logger.warning(
+                f"Cleanup interval {cleanup_interval}s too small, using minimum {MIN_CLEANUP_INTERVAL}s"
+            )
+            cleanup_interval = MIN_CLEANUP_INTERVAL
+        elif cleanup_interval > MAX_CLEANUP_INTERVAL:
+            logger.warning(
+                f"Cleanup interval {cleanup_interval}s too large, using maximum {MAX_CLEANUP_INTERVAL}s"
+            )
+            cleanup_interval = MAX_CLEANUP_INTERVAL
+
+        self.cleanup_interval = cleanup_interval
+
         logger.info(
-            f"Initializing SemanticRouter with threshold {similarity_threshold}"
+            f"Initializing SemanticRouter with threshold {similarity_threshold} "
+            f"and cleanup interval {self.cleanup_interval}s"
         )
         self.routes: List[Route] = []
         self._session: Optional[SessionProtocol] = None
@@ -261,20 +299,24 @@ class SemanticRouter:
             raise ValueError("Request content cannot be empty")
 
         try:
-            async with asyncio.timeout(REQUEST_TIMEOUT):
+            async with asyncio.timeout(self.request_timeout):
                 logger.info("Processing new request")
                 route_result = await self.route(content)
-                
+
                 if not route_result:
                     return await self._handle_no_route(content)
 
                 handler, similarity = route_result
-                logger.info(f"Executing handler '{handler.__name__}' with similarity {similarity:.3f}")
-                return await self._execute_handler(handler, content)
+                logger.info(
+                    f"Executing handler '{handler.__name__}' with similarity {similarity:.3f}"
+                )
+                return await handler(content)
 
         except asyncio.TimeoutError:
             logger.error("Request timed out")
-            raise ExecutionError(f"Request timed out after {REQUEST_TIMEOUT} seconds")
+            raise ExecutionError(
+                f"Request timed out after {self.request_timeout} seconds"
+            )
 
     async def route(self, content: str) -> Optional[Tuple[HandlerFunction, float]]:
         logger.debug(f"Routing request: {content[:100]}...")
@@ -320,7 +362,9 @@ class SemanticRouter:
         try:
             return await handler(content)
         except Exception as e:
-            logger.error(f"Handler '{handler.__name__}' execution failed: {e}", exc_info=True)
+            logger.error(
+                f"Handler '{handler.__name__}' execution failed: {e}", exc_info=True
+            )
             raise  # Re-raise the original exception with full context
 
     async def set_session(self, session: SessionProtocol) -> None:
@@ -338,16 +382,27 @@ async def main():
             embedding_service,
             similarity_threshold=0.5,
             default_handler=default_response,
+            cleanup_interval=10.0,
+            request_timeout=30.0,
         )
 
-        doodle = DoodleAgent()
-        route_description = await doodle.get_description()
+        doodle = DoodleServer()
+
+        # Wrap the bark method to handle the content parameter
+        async def bark_wrapper(content: str) -> Dict[str, str]:
+            # You could parse intensity from content here if needed
+            return await doodle.bark()
+
+        # Wrap the get_last_bark method to handle the content parameter
+        async def last_bark_wrapper(content: str) -> Dict[str, str]:
+            return await doodle.get_last_bark()
 
         await router.add_route(
             Route(
                 pattern="bark",
-                handler=doodle.bark,
-                route_description=route_description,
+                handler=bark_wrapper,
+                route_description="Make a dog bark with different intensities (quiet/normal/loud)",
+                priority=1,
             )
         )
 

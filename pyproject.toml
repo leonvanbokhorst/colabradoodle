@@ -6,5 +6,6 @@ requires-python = ">=3.8"
 
 [tool.pytest.ini_options]
 asyncio_mode = "strict"
+asyncio_fixture_loop_scope = "function"
 pythonpath = ["."]
 testpaths = ["tests"]

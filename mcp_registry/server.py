@@ -102,16 +102,18 @@ class RegistryServer(Server):
 
     async def _cleanup_stale_servers(self) -> None:
         """Remove servers that haven't sent a heartbeat within the timeout period.
-        
+
         Iterates through registered servers and removes those that have exceeded
         the configured timeout period since their last heartbeat.
         """
         now = datetime.utcnow()
         stale_servers = [
-            server_id for server_id, server in self.servers.items()
-            if (now - server.last_heartbeat).total_seconds() > self.server_timeout_seconds
+            server_id
+            for server_id, server in self.servers.items()
+            if (now - server.last_heartbeat).total_seconds()
+            > self.server_timeout_seconds
         ]
-        
+
         for server_id in stale_servers:
             del self.servers[server_id]
             self.logger.info(
@@ -120,22 +122,33 @@ class RegistryServer(Server):
 
     async def _cleanup_loop(self) -> None:
         """Periodically remove stale server registrations.
-        
+
         Runs an infinite loop that periodically calls the cleanup function.
-        The cleanup interval is calculated as half the server timeout period,
-        bounded between 5 and 30 seconds to prevent too frequent or too rare cleanups.
-        
+        The cleanup interval is calculated as 1/10th the server timeout period,
+        bounded between 0.1 and 30 seconds to prevent too frequent or too rare cleanups.
+
         The loop continues until cancelled or an unhandled exception occurs.
         On error, it waits 30 seconds before retrying.
         """
         while True:
             try:
                 await self._cleanup_stale_servers()
-                # Calculate sleep interval as half the timeout period, bounded between 5-30s
-                sleep_interval = max(5, min(30, self.server_timeout_seconds / 2))
+                # Calculate sleep interval as 1/10th the timeout period, bounded between 0.1-30s
+                sleep_interval = max(0.1, min(30, self.server_timeout_seconds / 10))
                 await asyncio.sleep(sleep_interval)
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 self.logger.error(f"Error in cleanup loop: {e}")
                 await asyncio.sleep(30)  # On error, wait 30s before retry
+
+    async def is_registered(self, server_id: str) -> bool:
+        """Check if a server is currently registered.
+
+        Args:
+            server_id: ID of the server to check
+
+        Returns:
+            bool: True if server is registered, False otherwise
+        """
+        return server_id in self.servers

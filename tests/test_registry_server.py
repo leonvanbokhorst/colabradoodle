@@ -138,8 +138,10 @@ async def test_cleanup_stale_servers_with_concurrent_heartbeats():
     
     # Send heartbeats concurrently
     await asyncio.sleep(1)  # Wait a bit before sending heartbeats
-    await server.heartbeat("server1")
-    await server.heartbeat("server2")
+    await asyncio.gather(
+        server.heartbeat("server1"),
+        server.heartbeat("server2")
+    )
     
     # Allow cleanup to run
     await asyncio.sleep(1)

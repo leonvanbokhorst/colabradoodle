@@ -104,6 +104,7 @@ class RegistryServer(Server):
         """Remove servers that haven't sent a heartbeat within the timeout period.
 
         This method checks all registered servers and removes any that have exceeded
+
         the configured timeout period since their last heartbeat.
         """
         now = datetime.utcnow()
@@ -125,14 +126,17 @@ class RegistryServer(Server):
 
         This method controls the cleanup loop timing and error handling, delegating
         the actual cleanup work to _cleanup_stale_servers.
+
         """
         while True:
             try:
                 await self._cleanup_stale_servers()
+
                 # Sleep for half the timeout period, but between 5 and 30 seconds
                 await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
+
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 self.logger.error(f"Error in cleanup loop: {e}")
-                await asyncio.sleep(30)
+                await asyncio.sleep(30)  # On error, wait 30s before retry

@@ -55,15 +55,21 @@ async def test_registry_server_heartbeat_prevents_timeout():
         endpoint="test://endpoint"
     )
     
+    # Store initial heartbeat timestamp
+    initial_heartbeat = server.servers["test_server"].last_heartbeat
+    
     # Start cleanup task
     cleanup_task = asyncio.create_task(server._cleanup_loop())
     
-    # Send heartbeats every second for 3 seconds
-    for _ in range(3):
-        await asyncio.sleep(1)
-        await server.heartbeat("test_server")
+    # Wait just before timeout and send heartbeat
+    await asyncio.sleep(1.9)  # Just before 2s timeout
+    await server.heartbeat("test_server")
     
-    # Verify server is still registered
+    # Verify heartbeat timestamp was updated
+    assert server.servers["test_server"].last_heartbeat > initial_heartbeat
+    
+    # Wait another period to ensure server stays registered
+    await asyncio.sleep(1.5)
     servers = await server.discover_servers()
     assert len(servers) == 1
     assert servers[0]["id"] == "test_server"

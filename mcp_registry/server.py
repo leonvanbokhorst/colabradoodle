@@ -123,7 +123,10 @@ class RegistryServer(Server):
         
         Runs an infinite loop that periodically calls the cleanup function.
         The cleanup interval is calculated as half the server timeout period,
-        bounded between 5 and 30 seconds.
+        bounded between 5 and 30 seconds to prevent too frequent or too rare cleanups.
+        
+        The loop continues until cancelled or an unhandled exception occurs.
+        On error, it waits 30 seconds before retrying.
         """
         while True:
             try:

@@ -126,12 +126,10 @@ class RegistryServer(Server):
 
         This method controls the cleanup loop timing and error handling, delegating
         the actual cleanup work to _cleanup_stale_servers.
-
         """
         while True:
             try:
                 await self._cleanup_stale_servers()
-
                 # Sleep for half the timeout period, but between 5 and 30 seconds
                 await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
 
@@ -140,3 +138,14 @@ class RegistryServer(Server):
             except Exception as e:
                 self.logger.error(f"Error in cleanup loop: {e}")
                 await asyncio.sleep(30)  # On error, wait 30s before retry
+
+    async def is_registered(self, server_id: str) -> bool:
+        """Check if a server is currently registered.
+
+        Args:
+            server_id: ID of the server to check
+
+        Returns:
+            bool: True if server is registered, False otherwise
+        """
+        return server_id in self.servers

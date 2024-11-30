@@ -119,6 +119,12 @@ class RouteError(RouterError):
     pass
 
 
+class EmbeddingError(RouterError):
+    """Errors related to embedding generation."""
+
+    pass
+
+
 class ExecutionError(RouterError):
     """Errors related to request execution."""
 
@@ -312,11 +318,11 @@ class SemanticRouter:
                 )
                 return await handler(content)
 
-        except asyncio.TimeoutError:
+        except asyncio.TimeoutError as e:
             logger.error("Request timed out")
             raise ExecutionError(
                 f"Request timed out after {self.request_timeout} seconds"
-            )
+            ) from e
 
     async def route(self, content: str) -> Optional[Tuple[HandlerFunction, float]]:
         logger.debug(f"Routing request: {content[:100]}...")

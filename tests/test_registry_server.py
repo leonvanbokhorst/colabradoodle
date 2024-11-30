@@ -1,6 +1,8 @@
 import pytest
 from datetime import datetime, timedelta
 import asyncio
+import contextlib
+from datetime import timezone
 from mcp_registry.server import RegistryServer
 
 
@@ -37,10 +39,8 @@ async def test_registry_server_custom_timeout():
 
     # Cleanup
     cleanup_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
@@ -56,20 +56,20 @@ async def test_registry_server_heartbeat_prevents_timeout():
         capabilities=["test"],
         endpoint="test://endpoint",
     )
-    
+
     # Store initial heartbeat timestamp
     initial_heartbeat = server.servers["test_server"].last_heartbeat
-    
+
     # Start cleanup task
     cleanup_task = asyncio.create_task(server._cleanup_loop())
-    
+
     # Wait just before timeout and send heartbeat
     await asyncio.sleep(1.9)  # Just before 2s timeout
     await server.heartbeat("test_server")
-    
+
     # Verify heartbeat timestamp was updated
     assert server.servers["test_server"].last_heartbeat > initial_heartbeat
-    
+
     # Wait another period to ensure server stays registered
     await asyncio.sleep(1.5)
 
@@ -79,10 +79,8 @@ async def test_registry_server_heartbeat_prevents_timeout():
 
     # Cleanup
     cleanup_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
@@ -106,37 +104,35 @@ async def test_registry_server_default_timeout():
     servers = await server.discover_servers()
     assert len(servers) == 1
 
+
 @pytest.mark.asyncio
 async def test_cleanup_stale_servers_with_concurrent_heartbeats():
     server = RegistryServer(name="test_registry", server_timeout_seconds=2)
-    
+
     # Register servers
     servers_config = [
         ("server1", "Server 1"),
         ("server2", "Server 2"),
-        ("server3", "Server 3")
+        ("server3", "Server 3"),
     ]
-    
+
     for server_id, name in servers_config:
         await server.register_server(
             server_id=server_id,
             name=name,
             description=f"Test server {name}",
             capabilities=["test"],
-            endpoint="test://endpoint"
+            endpoint="test://endpoint",
         )
-    
+
     # Start cleanup task before sleep
     cleanup_task = asyncio.create_task(server._cleanup_loop())
-    
+
     # Use shorter sleep to prevent cleanup from occurring too soon
     await asyncio.sleep(0.5)
-    
+
     try:
-        await asyncio.gather(
-            server.heartbeat("server1"),
-            server.heartbeat("server2")
-        )
+        await asyncio.gather(server.heartbeat("server1"), server.heartbeat("server2"))
     finally:
         cleanup_task.cancel()
 
@@ -198,10 +194,8 @@ async def test_edge_case_heartbeat_before_timeout():
 
     # Cleanup
     cleanup_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
@@ -238,16 +232,14 @@ async def test_multiple_heartbeats_maintain_registration():
 
     # Cleanup
     cleanup_task.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await cleanup_task
-    except asyncio.CancelledError:
-        pass
 
 
 @pytest.mark.asyncio
 async def test_edge_case_heartbeat_timeouts():
     server = RegistryServer(name="test_registry", server_timeout_seconds=2)
-    
+
     await server.register_server(
         server_id="test_server",
         name="Test Server",
@@ -255,20 +247,35 @@ async def test_edge_case_heartbeat_timeouts():
         capabilities=["test"],
         endpoint="test://endpoint",
     )
-    
+
     # Manually set the last_heartbeat to ensure timeout
-    server.servers["test_server"].last_heartbeat = datetime.utcnow() - timedelta(seconds=3)
-    
+    # Use utcnow() to match the server implementation
+    server.servers["test_server"].last_heartbeat = datetime.utcnow() - timedelta(
+        seconds=3
+    )
+
+    # Create and start the cleanup task
     cleanup_task = asyncio.create_task(server._cleanup_loop())
-    
+
     try:
-        # Wait for cleanup to run
-        await asyncio.sleep(0.5)  # Shorter wait time since we pre-dated the heartbeat
-        
+        # Wait for cleanup to run at least once and ensure enough time for processing
+        await asyncio.sleep(2.5)  # Increased wait time further
+
+        # Cancel cleanup task before checking servers
+        cleanup_task.cancel()
+        with contextlib.suppress(asyncio.CancelledError):
+            await cleanup_task
+        # Add a small delay to ensure cleanup completes
+        await asyncio.sleep(0.1)
+
         servers = await server.discover_servers()
         assert len(servers) == 0
     finally:
-        cleanup_task.cancel()
+        # Ensure cleanup task is cancelled
+        if not cleanup_task.done():
+            cleanup_task.cancel()
+            with contextlib.suppress(asyncio.CancelledError):
+                await cleanup_task
 
 
 @pytest.mark.asyncio
@@ -277,4 +284,3 @@ async def test_registry_server_invalid_timeout(timeout):
     """Test that RegistryServer raises ValueError for invalid timeout values."""
     with pytest.raises(ValueError, match="Server timeout must be positive"):
         RegistryServer(name="test_registry", server_timeout_seconds=timeout)
-

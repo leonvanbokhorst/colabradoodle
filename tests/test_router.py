@@ -25,22 +25,20 @@ def embedding_service():
 
 @pytest.fixture
 async def router(embedding_service):
-    router = SemanticRouter(
+    return SemanticRouter(
         embedding_service=embedding_service,
         similarity_threshold=0.5,
         cleanup_interval=1.0,
     )
-    return router
 
 
 @pytest.fixture
 async def router_with_defaults(embedding_service):
-    router = SemanticRouter(
+    return SemanticRouter(
         embedding_service=embedding_service,
         similarity_threshold=0.5,
         cleanup_interval=1.0,
     )
-    return router
 
 
 # Basic initialization tests

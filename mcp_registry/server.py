@@ -100,27 +100,39 @@ class RegistryServer(Server):
             )
         return servers
 
-    async def _cleanup_loop(self):
-        """Periodically remove stale server registrations"""
+    async def _cleanup_stale_servers(self) -> None:
+        """Remove servers that haven't sent a heartbeat within the timeout period.
+        
+        Iterates through registered servers and removes those that have exceeded
+        the configured timeout period since their last heartbeat.
+        """
+        now = datetime.utcnow()
+        stale_servers = [
+            server_id for server_id, server in self.servers.items()
+            if (now - server.last_heartbeat).total_seconds() > self.server_timeout_seconds
+        ]
+        
+        for server_id in stale_servers:
+            del self.servers[server_id]
+            self.logger.info(
+                f"Removed stale server: {server_id} (timeout: {self.server_timeout_seconds}s)"
+            )
+
+    async def _cleanup_loop(self) -> None:
+        """Periodically remove stale server registrations.
+        
+        Runs an infinite loop that periodically calls the cleanup function.
+        The cleanup interval is calculated as half the server timeout period,
+        bounded between 5 and 30 seconds.
+        """
         while True:
             try:
-                now = datetime.utcnow()
-                stale_servers = [
-                    server_id
-                    for server_id, server in self.servers.items()
-                    if (now - server.last_heartbeat).total_seconds()
-                    > self.server_timeout_seconds
-                ]
-
-                for server_id in stale_servers:
-                    del self.servers[server_id]
-                    self.logger.info(
-                        f"Removed stale server: {server_id} (timeout: {self.server_timeout_seconds}s)"
-                    )
-
-                await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
+                await self._cleanup_stale_servers()
+                # Calculate sleep interval as half the timeout period, bounded between 5-30s
+                sleep_interval = max(5, min(30, self.server_timeout_seconds / 2))
+                await asyncio.sleep(sleep_interval)
             except asyncio.CancelledError:
                 break
             except Exception as e:
                 self.logger.error(f"Error in cleanup loop: {e}")
-                await asyncio.sleep(30)
+                await asyncio.sleep(30)  # On error, wait 30s before retry

@@ -10,10 +10,15 @@ logger = setup_logger("DoodleServer")
 class DoodleServer(Server):
     """MCP Server that provides dog-related functionality"""
 
+    BARK_SOUNDS = {
+        "quiet": "woof...",
+        "normal": "WOOF",
+        "loud": "WOOF!!!",
+    }
 
     def __init__(self, name: str = "doodle"):
         """Initialize the doodle server.
-        
+
         Args:
             name: The name of the server instance
         """

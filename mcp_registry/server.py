@@ -130,6 +130,7 @@ class RegistryServer(Server):
         while True:
             try:
                 await self._cleanup_stale_servers()
+
                 # Sleep for half the timeout period, but between 5 and 30 seconds
                 await asyncio.sleep(max(5, min(30, self.server_timeout_seconds / 2)))
 

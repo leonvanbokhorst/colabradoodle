@@ -270,3 +270,11 @@ async def test_edge_case_heartbeat_timeouts():
     finally:
         cleanup_task.cancel()
 
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("timeout", [-1, 0, -0.5])
+async def test_registry_server_invalid_timeout(timeout):
+    """Test that RegistryServer raises ValueError for invalid timeout values."""
+    with pytest.raises(ValueError, match="Server timeout must be positive"):
+        RegistryServer(name="test_registry", server_timeout_seconds=timeout)
+

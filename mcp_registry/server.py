@@ -33,6 +33,8 @@ class RegistryServer(Server):
 
     def __init__(self, name: str = "registry", server_timeout_seconds: int = 60):
         super().__init__(name=name)
+        if server_timeout_seconds <= 0:
+            raise ValueError("Server timeout must be positive")
         self.servers: Dict[str, RegisteredServer] = {}
         self.logger = logging.getLogger("mcp.registry")
         self._cleanup_task: Optional[asyncio.Task] = None

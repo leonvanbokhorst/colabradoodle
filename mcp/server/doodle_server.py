@@ -10,6 +10,7 @@ logger = setup_logger("DoodleServer")
 class DoodleServer(Server):
     """MCP Server that provides dog-related functionality"""
 
+
     def __init__(self, name: str = "doodle"):
         """Initialize the doodle server.
         
@@ -17,14 +18,13 @@ class DoodleServer(Server):
             name: The name of the server instance
         """
         super().__init__(name=name)
+
         self.last_bark: Optional[datetime] = None
 
     async def bark(self, intensity: str = "normal") -> Dict[str, str]:
         """Simulate a dog bark with different intensities."""
-        bark_sounds = {"quiet": "woof...", "normal": "Woof!", "loud": "WOOF!!!"}
-
         self.last_bark = datetime.now(UTC)
-        bark = bark_sounds.get(intensity.lower(), bark_sounds["normal"])
+        bark = self.BARK_SOUNDS.get(intensity.lower(), self.BARK_SOUNDS["normal"])
 
         return {"sound": bark, "timestamp": self.last_bark.isoformat()}
 

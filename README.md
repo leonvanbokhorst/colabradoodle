@@ -53,7 +53,7 @@ While the network is no longer live, you can:
    ```bash
    pip install --upgrade pip
    pip install -r requirements.txt
-   ```  
+   ```
 
 4. Explore the agent code and the semantic routing implementation.
 5. Run your own mini-version of the network by starting the agents and router locally.
@@ -73,4 +73,8 @@ This project is released under the [MIT License](LICENSE).
 
 ## ❤️ Acknowledgments
 
-Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day. You rock! 😊
+Colabradoodle was brought to life by a group of dreamers, tinkerers, and innovators. Thanks to everyone who contributed their energy, humor, and creativity to this chaotic day. You rock! 😊 
+
+<p align="right">
+  <img src="opleiding-digitale-transformatie.png" alt="odt">
+</p>

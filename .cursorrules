@@ -125,4 +125,6 @@ Best Practices:
 7. Feature flagging
 8. Graceful degradation
 
+Use uv pip to install dependencies and manage project dependencies environment.
+
 Be concise and complete. Please, do NOT Appologize! Have fun!

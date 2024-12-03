@@ -1,6 +1,6 @@
 from dataclasses import dataclass
 from typing import Dict, List, Optional
-from datetime import datetime
+from datetime import datetime, UTC
 import asyncio
 import logging
 from mcp.server.server import Server
@@ -66,7 +66,7 @@ class RegistryServer(Server):
             description=description,
             capabilities=capabilities,
             endpoint=endpoint,
-            last_heartbeat=datetime.utcnow(),
+            last_heartbeat=datetime.now(UTC),
             metadata=metadata or {},
         )
 
@@ -80,7 +80,7 @@ class RegistryServer(Server):
                 "server_not_found", f"Server {server_id} not registered"
             )
 
-        self.servers[server_id].last_heartbeat = datetime.utcnow()
+        self.servers[server_id].last_heartbeat = datetime.now(UTC)
         return {"status": "ok"}
 
     async def discover_servers(
@@ -109,7 +109,7 @@ class RegistryServer(Server):
 
         the configured timeout period since their last heartbeat.
         """
-        now = datetime.utcnow()
+        now = datetime.now(UTC)
         stale_servers = [
             server_id
             for server_id, server in self.servers.items()

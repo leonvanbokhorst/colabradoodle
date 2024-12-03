@@ -1,5 +1,5 @@
 import pytest
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import asyncio
 import contextlib
 from datetime import timezone
@@ -250,7 +250,7 @@ async def test_edge_case_heartbeat_timeouts():
 
     # Manually set the last_heartbeat to ensure timeout
     # Use utcnow() to match the server implementation
-    server.servers["test_server"].last_heartbeat = datetime.utcnow() - timedelta(
+    server.servers["test_server"].last_heartbeat = datetime.now(UTC) - timedelta(
         seconds=3
     )
 

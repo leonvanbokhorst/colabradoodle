@@ -24,7 +24,7 @@ safetensors==0.4.5
 scikit-learn==1.5.2
 scipy==1.14.1
 sentence-transformers
-setuptools==75.6.0
+setuptools==78.1.1
 sympy==1.13.1
 threadpoolctl==3.5.0
 tokenizers==0.20.3

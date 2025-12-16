@@ -1,6 +1,6 @@
 certifi==2024.8.30
 charset-normalizer==3.4.0
-filelock==3.16.1
+filelock==3.20.1
 fsspec==2024.10.0
 huggingface-hub==0.26.3
 idna==3.10
